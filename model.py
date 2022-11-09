@@ -31,25 +31,13 @@ Label_Movie_ID = preprocessing.LabelEncoder()
 df.User_ID = Label_User_ID.fit_transform(df.User_ID.values)
 df.Movie_ID = Label_Movie_ID.fit_transform(df.Movie_ID.values)
   
-df_train, df_valid = train_test_split(df, 
-                                      test_size=0.2, 
-                                      random_state=42, 
-                                      stratify=df.Rating.values)
+df_train, df_valid = train_test_split(df, test_size=0.2, random_state=42,  stratify=df.Rating.values)
   
-train_dataset = RatingDataset(User_ID = df_train.User_ID.values,
-                              Movie_ID = df_train.Movie_ID.values,
-                              Rating = (df_train.Rating.values-1))
+train_dataset = RatingDataset(User_ID = df_train.User_ID.values,Movie_ID = df_train.Movie_ID.values,Rating = (df_train.Rating.values-1))
+valid_dataset = RatingDataset(User_ID = df_valid.User_ID.values,Movie_ID = df_valid.Movie_ID.values, Rating = (df_valid.Rating.values-1))
   
-valid_dataset = RatingDataset(User_ID = df_valid.User_ID.values,
-                              Movie_ID = df_valid.Movie_ID.values,
-                              Rating = (df_valid.Rating.values-1))
-  
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset, 
-                                            batch_size=512, 
-                                            shuffle=True)
-valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, 
-                                            batch_size=512, 
-                                            shuffle=False)
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=512,  shuffle=True)
+valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=512, shuffle=False)
 
 """
 Setup Model
@@ -62,12 +50,10 @@ print(f"Using {device} device")
 model = RecSys(num_users = len(Label_User_ID.classes_), 
                num_movies = len(Label_Movie_ID.classes_)).to(device)
 
-# Get optimized hyperparameters
-params = {
-    'lr': 0.001
-}
-optimized_params = nni.get_next_parameter()
-params.update(optimized_params)
+# Setup optimized hyperparameters
+params = {'lr': 0.001}                      #original params
+optimized_params = nni.get_next_parameter() #receiving from NNI experiments
+params.update(optimized_params)             #updated the original params
 print(params)
 
 # Training functions
@@ -106,8 +92,9 @@ def test(dataloader, model, loss_fn):
 # Train the model
 epochs = 5
 for t in range(epochs):
-    train(train_loader, model, loss_fn, optimizer)
-    accuracy = test(valid_loader, model, loss_fn)
-    nni.report_intermediate_result(accuracy)
+    train(train_loader, model, loss_fn, optimizer)      #train the model
+    accuracy = test(valid_loader, model, loss_fn)       #evaluate after each round
+    nni.report_intermediate_result(accuracy)            #report intermediate result
 
-nni.report_final_result(accuracy)
+# Report final result 
+nni.report_final_result(accuracy)                       #report final result
